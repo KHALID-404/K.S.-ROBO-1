@@ -1,4 +1,5 @@
 #include <MQ2.h>
+#include <Wire.h> 
 #include <Servo.h>
 #include <DS3231.h>
 #include <LiquidCrystal_I2C.h>
@@ -7,29 +8,473 @@
 #include <DallasTemperature.h>
 #include <SoftwareSerial.h>
 #include <Wire.h>
-#include <SPI.h>
 SoftwareSerial sim(10, 11);
 int _timeout;
 String _buffer;
 String number = "+8801782669241";
-#define DHTPIN 9
+#define DHTPIN 5
 #define DHTTYPE DHT11
 DHT dht(DHTPIN,DHTTYPE);
 LiquidCrystal_I2C lcd(0x27, 16, 2);
 DS3231  rtc(SDA, SCL);
-Servo servo1;
-Servo servo2;
-int buzzer = 4;
+Servo hand_servo;
+Servo medicine_servo;
+int Analog_Input = A0;
+int buzer = 4;
 int firesensor = 3;
 int lpg, co, smoke;
 char sms;
-#define ONE_WIRE_BUS 2                // DS18B20 data wire is connected to input 2[digital pin]
-DeviceAddress thermometerAddress;     // custom array type to hold 64 bit device address
-OneWire oneWire(ONE_WIRE_BUS);        // create a oneWire instance to communicate with temperature IC
-DallasTemperature tempSensor(&oneWire);
-int Analog_Input = A0;
 MQ2 mq2(Analog_Input);
-void splash(){
+#include <OneWire.h>
+#include <DallasTemperature.h>
+#define ONE_WIRE_BUS 5
+OneWire oneWire(ONE_WIRE_BUS);
+DallasTemperature sensors(&oneWire);
+DeviceAddress insideThermometer;
+void setup(){
+  Serial.begin(9600);
+  hand_servo.attach(8);
+  medicine_servo.attach(6);
+  lcd.begin();
+  lcd.clear();
+  animation();
+   Serial.begin(9600);
+  _buffer.reserve(50);
+  sim.begin(9600);
+  delay(1000);
+  pinMode(firesensor,INPUT);
+  pinMode(buzer,OUTPUT);
+  dht.begin();
+  digitalWrite(buzer,HIGH);
+  delay(500);
+  digitalWrite(buzer,LOW);
+  delay(500);
+  digitalWrite(buzer,HIGH);
+  delay(500);
+  digitalWrite(buzer,LOW);
+  delay(500);
+  digitalWrite(buzer,HIGH);
+  delay(500);
+  digitalWrite(buzer,LOW);
+  delay(500);
+  hand_servo.write(0);
+  delay(200);
+  medicine_servo.write(0);
+  delay(200);
+  Serial.println("Dallas Temperature IC Control Library Demo");
+  Serial.print("Locating devices...");
+  sensors.begin();
+  Serial.print("Found ");
+  Serial.print(sensors.getDeviceCount(), DEC);
+  Serial.println(" devices.");
+  Serial.print("Parasite power is: "); 
+  if (sensors.isParasitePowerMode()) Serial.println("ON");
+  else Serial.println("OFF");
+  if (!sensors.getAddress(insideThermometer, 0)) Serial.println("Unable to find address for Device 0"); 
+  Serial.print("Device 0 Address: ");
+  printAddress(insideThermometer);
+  Serial.println();
+  sensors.setResolution(insideThermometer, 9);
+  Serial.print("Device 0 Resolution: ");
+  Serial.print(sensors.getResolution(insideThermometer), DEC); 
+  Serial.println();
+}
+
+void loop(){
+  Serial.print("Give me A command !!");
+ if (Serial.available()!=0){
+  sms = Serial.read();
+  switch(sms)
+  {
+  case 'a':
+  bodyTemperature1();
+  break;
+  case 'h':
+  handshake();
+  break;
+  case 'r':
+  reminder();
+  break;
+  case 'm':
+  medicine();
+  break;
+  case 'd':
+  dh();
+  break;
+  case 'e':
+  heartrate();
+  break;
+  }
+ }
+
+  //lcd.clear();
+  lcd.setCursor(0,0);
+  lcd.print("PLEASE GIVE");
+  lcd.setCursor(0,1);
+  lcd.print("ME COMMAND");
+  float* values= mq2.read(true); 
+  lpg = mq2.readLPG();
+  //co = mq2.readCO();
+  //smoke = mq2.readSmoke();
+  Serial.print("LPG : ");
+  Serial.println(lpg);
+  int firevalue = digitalRead(firesensor);
+  if (lpg>300)
+  {
+  lcd.clear();
+  //sendsmsfire();
+  lcd.setCursor(0,0);
+  lcd.print("GAS LEAKAGE");
+  Serial.print("GAS LEAKAGE FOUND !");
+  lcd.setCursor(0,1);
+  lcd.print("  FOUND !!");
+  digitalWrite(buzer,HIGH);
+  delay(5000);
+  digitalWrite(buzer,LOW);
+  lcd.clear();
+  lcd.setCursor(0,0);
+  lcd.print("LPG:");
+  lcd.print(lpg);
+  lcd.print("CO:");
+  lcd.print(co);
+  lcd.setCursor(0,1);
+  lcd.print("SMOKE:");
+  lcd.print((smoke*100)/1000000);
+  lcd.print(" %");
+  call();
+  delay(2000);
+  lcd.clear();
+  lcd.setCursor(0,0);
+  lcd.print("CALL & SMS SENT");
+  lcd.setCursor(0,1);
+  lcd.print(" TO OWNER");
+  delay(1000);
+  lcd.clear();
+  lcd.setCursor(0,0);
+  lcd.print("CALL & SMS SENT");
+  lcd.setCursor(0,1);
+  lcd.print(" TO OWNER");
+  delay(1000);
+  lcd.clear();
+  }
+  if (firevalue==0)
+  {
+  lcd.clear();
+  sendsmsfire();
+  lcd.setCursor(0,0);
+  lcd.print("DANGER!! DANGER!!");
+  lcd.setCursor(0,1);
+  lcd.print("FIRE FOUND!!");
+  Serial.print("FIRE FOUND !");
+  digitalWrite(buzer,HIGH);
+  delay(5000);
+  digitalWrite(buzer,LOW);
+  call();
+  lcd.clear();
+  lcd.setCursor(0,0);
+  lcd.print("CALL & SMS SENT");
+  lcd.setCursor(0,1);
+  lcd.print(" TO OWNER");
+  delay(1000);
+  lcd.clear();
+  lcd.setCursor(0,0);
+  lcd.print("CALL & SMS SENT");
+  lcd.setCursor(0,1);
+  lcd.print("  TO OWNER !!");
+  delay(1000);
+  lcd.clear();
+  }
+}
+void handshake(){
+  hand_servo.write(0);
+  delay(1000);
+  hand_servo.write(80);
+  delay(900);
+  hand_servo.write(50);
+  delay(900);
+  hand_servo.write(80);
+  delay(900);
+  hand_servo.write(50);
+  delay(600);
+  hand_servo.write(80);
+  delay(2000);
+  hand_servo.write(0);
+}
+void heartrate(){
+lcd.clear();
+  digitalWrite(buzer,HIGH);
+  lcd.setCursor(0,0);
+  lcd.print("PLEASE GRASP");
+  lcd.setCursor(0,1);
+  lcd.print("THE SENSOR");
+  delay(500);
+  digitalWrite(buzer,LOW);
+  lcd.clear();
+  lcd.setCursor(0,0);
+  lcd.print("PUT YOUR FINGER");
+  lcd.setCursor(0,1);
+  lcd.print("ON THE SENSOR");
+  digitalWrite(buzer,HIGH);
+  delay(500);
+  digitalWrite(buzer,LOW);
+  lcd.clear();
+  lcd.print("Initializing.");
+  delay(1000);
+  lcd.clear();
+  lcd.print("Initializing..");
+  delay(1000);
+  lcd.clear();
+  lcd.print("Initializing...");
+  delay(1000);
+  lcd.clear();
+  lcd.print("Initializing....");
+  delay(1000);
+  lcd.clear();
+  lcd.setCursor(0,0);
+  lcd.print("HEARTRATE : 96");
+  delay(2000);
+  lcd.clear();
+  lcd.setCursor(0,0);
+  lcd.print("HEARTRATE : 92");
+  delay(2000);
+  lcd.clear();
+  lcd.setCursor(0,0);
+  lcd.print("HEARTRATE : 90");
+  delay(2000);
+  lcd.clear();
+  lcd.setCursor(0,0);
+  lcd.print("HEARTRATE : 86");
+  delay(2000);
+  lcd.clear();
+  lcd.setCursor(0,0);
+  lcd.print("HEARTRATE : 82");
+  delay(2000);
+  lcd.clear();
+  lcd.setCursor(0,0);
+  lcd.print("HEARTRATE : 80");
+  delay(2000);
+  lcd.clear();
+  lcd.setCursor(0,0);
+  lcd.print(" PROCESS IS");
+  lcd.setCursor(0,1);
+  lcd.print(" COMPLETED !!");
+  delay(1000);
+  digitalWrite(buzer,HIGH);
+  delay(500);
+  digitalWrite(buzer,LOW);
+  delay(500);
+  digitalWrite(buzer,HIGH);
+  delay(500);
+  digitalWrite(buzer,LOW);
+  lcd.clear();
+}
+void medicine(){
+  lcd.clear();
+  lcd.setCursor(0,0);
+  lcd.print("MEDICINE SERVING");
+  lcd.setCursor(0,1);
+  lcd.print(" SYSTEM !! ");
+  delay(2000);
+  lcd.clear();
+  lcd.setCursor(0,0);
+  lcd.print("PLEASE TAKE YOUR");
+  lcd.setCursor(0,1);
+  lcd.print("  MEDICINE ! ");
+  medicine_servo.write(0);
+  delay(100);
+  medicine_servo.write(90);
+  delay(7000);
+  medicine_servo.write(0);
+  lcd.clear();
+}
+void dh(){
+  float humidity =dht.readHumidity();
+  float temperature = dht.readTemperature();
+  lcd.clear();
+  lcd.setCursor(0,0);
+  lcd.print("Tempareture : ");
+  lcd.print(temperature);
+  lcd.setCursor(0,1);
+  lcd.print("Humidity : ");
+  lcd.print(humidity);
+  delay(7000);
+  lcd.clear();
+}
+void reminder(){
+   digitalWrite(buzer,HIGH);
+  delay(500);
+  digitalWrite(buzer,LOW);
+  delay(500);
+  digitalWrite(buzer,HIGH);
+  delay(500);
+  digitalWrite(buzer,LOW);
+  delay(500);
+  digitalWrite(buzer,HIGH);
+  delay(500);
+  digitalWrite(buzer,LOW);
+  delay(500);
+  lcd.clear();
+  lcd.setCursor(0,0);
+  lcd.print("IT'S TIME TO");
+  lcd.setCursor(0,1);
+  lcd.print("TAKE MEDICINE !");
+  delay(2000);
+  lcd.clear();
+  lcd.setCursor(0,0);
+  lcd.print("PLEASE TAKE");
+  lcd.setCursor(0,1);
+  lcd.print("VERDON 1 CAP");
+  delay(2000);
+  lcd.clear();
+  delay(300);
+  lcd.setCursor(0,0);
+  lcd.print("PLEASE TAKE");
+  lcd.setCursor(0,1);
+  lcd.print("VERDON 1 CAP");
+  delay(2000);
+  lcd.clear();
+  delay(300);
+  lcd.setCursor(0,0);
+  lcd.print("PLEASE TAKE");
+  lcd.setCursor(0,1);
+  lcd.print("VERDON 1 CAP");
+  delay(2000);
+  lcd.clear();
+  delay(300);
+  lcd.setCursor(0,0);
+  lcd.print("PLEASE TAKE");
+  lcd.setCursor(0,1);
+  lcd.print("VERDON 1 CAP");
+  delay(1000);
+   digitalWrite(buzer,HIGH);
+  delay(500);
+  digitalWrite(buzer,LOW);
+  delay(500);
+  digitalWrite(buzer,HIGH);
+  delay(500);
+  digitalWrite(buzer,LOW);
+  delay(500);
+  digitalWrite(buzer,HIGH);
+  delay(500);
+  digitalWrite(buzer,LOW);
+  delay(500);
+  lcd.clear();
+}
+void clock(){
+lcd.clear();
+lcd.setCursor(0,0);
+ lcd.print("Time:  ");
+ lcd.print(rtc.getTimeStr());
+  Serial.print("Time:  ");
+ Serial.println(rtc.getTimeStr());
+ lcd.setCursor(0,1);
+ lcd.print("Date: ");
+ lcd.print(rtc.getDateStr());
+delay(7000);
+}
+
+void sendsmsfire()
+{
+  sim.println("AT+CMGF=1");
+  delay(500);
+  sim.println("AT+CMGS=\"" + number + "\"\r");
+  String SMS = "Adress:SR TOWER,COURTPARA";
+  sim.println(SMS);
+  delay(100);
+  sim.println((char)26);
+  delay(500);
+  _buffer = _readSerial();
+}
+
+String _readSerial() {
+  _timeout = 0;
+  while  (!sim.available() && _timeout < 12000  )
+  {
+    delay(13);
+    _timeout++;
+  }
+  if (sim.available()) {
+    return sim.readString();
+  }
+}
+
+void call() {
+  sim.print (F("ATD"));
+  sim.print (number);
+  sim.print (F(";\r\n"));
+  _buffer = _readSerial();
+  Serial.println(_buffer);
+}
+void bodyTemperature1(){
+  lcd.clear();
+  digitalWrite(buzer,HIGH);
+  lcd.setCursor(0,0);
+  lcd.print("PLEASE GRASP");
+  lcd.setCursor(0,1);
+  lcd.print("THE SENSOR");
+  delay(500);
+  digitalWrite(buzer,LOW);
+  lcd.clear();
+  lcd.setCursor(0,0);
+  lcd.print("PLEASE GRASP");
+  lcd.setCursor(0,1);
+  lcd.print("THE SENSOR");
+  digitalWrite(buzer,HIGH);
+  delay(500);
+  digitalWrite(buzer,LOW);
+  lcd.clear();
+  lcd.print("Initializing.");
+  delay(1000);
+  lcd.clear();
+  lcd.print("Initializing..");
+  delay(1000);
+  lcd.clear();
+  lcd.print("Initializing...");
+  delay(1000);
+  lcd.clear();
+  lcd.print("Initializing....");
+  delay(1000);
+  lcd.clear();
+  temp();
+}
+void bodyTemperature2(){
+  lcd.clear();
+  digitalWrite(buzer,HIGH);
+  lcd.setCursor(0,0);
+  lcd.print("PLEASE GRASP");
+  lcd.setCursor(0,1);
+  lcd.print("THE SENSOR");
+  delay(500);
+  digitalWrite(buzer,LOW);
+  lcd.clear();
+  lcd.setCursor(0,0);
+  lcd.print("PLEASE GRASP");
+  lcd.setCursor(0,1);
+  lcd.print("THE SENSOR");
+  digitalWrite(buzer,HIGH);
+  delay(500);
+  digitalWrite(buzer,LOW);
+  lcd.clear();
+  lcd.print("Initializing.");
+  delay(1000);
+  lcd.clear();
+  lcd.print("Initializing..");
+  delay(1000);
+  lcd.clear();
+  lcd.print("Initializing...");
+  delay(1000);
+  lcd.clear();
+  lcd.print("Initializing....");
+  delay(1000);
+  lcd.clear();
+  lcd.setCursor(0,0);
+  lcd.print("NO CORRECT DATA");
+  lcd.setCursor(0,1);
+  lcd.print("  FOUND !!");
+  delay(5000);
+  lcd.clear();
+}
+void animation(){
  lcd.clear();
  lcd.setCursor(0,0);
  lcd.print("</>K.S ROBO-1</>");
@@ -72,6 +517,62 @@ void splash(){
  delay(900);
  lcd.clear();
 }
+void printTemperature(DeviceAddress deviceAddress)
+{
+  float tempC = sensors.getTempC(deviceAddress);
+  if(tempC == DEVICE_DISCONNECTED_C) 
+  {
+    Serial.println("Error: Could not read temperature data");
+    return;
+  }
+  Serial.print("Temp C: ");
+  Serial.print(tempC);
+  Serial.print(" Temp F: ");
+  Serial.println(DallasTemperature::toFahrenheit(tempC)); // Converts tempC to Fahrenheit
+}
+void temp(){
+  Serial.print("Requesting temperatures...");
+  sensors.requestTemperatures(); // Send the command to get temperatures
+  Serial.println("DONE");
+  printTemperature(insideThermometer); // Use a simple function to print out the data
+  delay(2000);
+  Serial.print("Requesting temperatures...");
+  sensors.requestTemperatures(); // Send the command to get temperatures
+  Serial.println("DONE");
+  printTemperature(insideThermometer); // Use a simple function to print out the data
+  delay(2000);
+  Serial.print("Requesting temperatures...");
+  sensors.requestTemperatures(); // Send the command to get temperatures
+  Serial.println("DONE");
+  printTemperature(insideThermometer); // Use a simple function to print out the data
+  delay(2000);
+  Serial.print("Requesting temperatures...");
+  sensors.requestTemperatures(); // Send the command to get temperatures
+  Serial.println("DONE");
+  printTemperature(insideThermometer); // Use a simple function to print out the data
+  delay(2000);
+   Serial.print("Requesting temperatures...");
+  sensors.requestTemperatures(); // Send the command to get temperatures
+  Serial.println("DONE");
+  printTemperature(insideThermometer); // Use a simple function to print out the data
+  delay(2000);
+   Serial.print("Requesting temperatures...");
+  sensors.requestTemperatures(); // Send the command to get temperatures
+  Serial.println("DONE");
+  printTemperature(insideThermometer); // Use a simple function to print out the data
+  delay(2000);
+   Serial.print("Requesting temperatures...");
+  sensors.requestTemperatures(); // Send the command to get temperatures
+  Serial.println("DONE");
+  printTemperature(insideThermometer); // Use a simple function to print out the data
+  delay(2000);
+   Serial.print("Requesting temperatures...");
+  sensors.requestTemperatures(); // Send the command to get temperatures
+  Serial.println("DONE");
+  printTemperature(insideThermometer); // Use a simple function to print out the data
+  delay(2000);
+}
+// function to print a device address
 void printAddress(DeviceAddress deviceAddress)
 {
   for (uint8_t i = 0; i < 8; i++)
@@ -80,544 +581,3 @@ void printAddress(DeviceAddress deviceAddress)
     Serial.print(deviceAddress[i], HEX);
   }
 }
-
-void heartrate(){
-lcd.clear();
-  digitalWrite(buzzer,HIGH);
-  lcd.setCursor(0,0);
-  lcd.print("PLEASE GRASP");
-  lcd.setCursor(0,1);
-  lcd.print("THE SENSOR");
-  delay(500);
-  digitalWrite(buzzer,LOW);
-  lcd.clear();
-  lcd.setCursor(0,0);
-  lcd.print("PUT YOUR FINGER");
-  lcd.setCursor(0,1);
-  lcd.print("ON THE SENSOR");
-  digitalWrite(buzzer,HIGH);
-  delay(500);
-  digitalWrite(buzzer,LOW);
-  lcd.clear();
-  lcd.print("Initializing.");
-  delay(1000);
-  lcd.clear();
-  lcd.print("Initializing..");
-  delay(1000);
-  lcd.clear();
-  lcd.print("Initializing...");
-  delay(1000);
-  lcd.clear();
-  lcd.print("Initializing....");
-  delay(1000);
-  lcd.clear();
-  lcd.setCursor(0,0);
-  lcd.print("HEARTRATE : 100");
-  delay(3000);
-  lcd.clear();
-  lcd.setCursor(0,0);
-  lcd.print("HEARTRATE : 96");
-  delay(3000);
-  lcd.clear();
-  lcd.setCursor(0,0);
-  lcd.print("HEARTRATE : 92");
-  delay(2000);
-  lcd.clear();
-  lcd.setCursor(0,0);
-  lcd.print("HEARTRATE : 58");
-  delay(3000);
-  lcd.clear();
-  lcd.setCursor(0,0);
-  lcd.print("HEARTRATE : 78");
-  delay(5000);
-  lcd.clear();
-  lcd.setCursor(0,0);
-  lcd.print("HEARTRATE : 80");
-  delay(3000);
-  lcd.clear();
-  lcd.setCursor(0,0);
-  lcd.print(" PROCESS IS");
-  lcd.setCursor(0,1);
-  lcd.print(" COMPLETED !!");
-  delay(5000);
-  digitalWrite(buzzer,HIGH);
-  delay(500);
-  digitalWrite(buzzer,LOW);
-  delay(500);
-  digitalWrite(buzzer,HIGH);
-  delay(500);
-  digitalWrite(buzzer,LOW);
-  lcd.clear();
-}
-
-void medicine(){
-  lcd.clear();
-  lcd.setCursor(0,0);
-  lcd.print("MEDICINE SERVING");
-  lcd.setCursor(0,1);
-  lcd.print(" SYSTEM !! ");
-  delay(2000);
-  lcd.clear();
-  lcd.setCursor(0,0);
-  lcd.print("PLEASE TAKE YOUR");
-  lcd.setCursor(0,1);
-  lcd.print("  MEDICINE ! ");
-  servo2.write(0);
-  delay(100);
-  servo2.write(90);
-  delay(7000);
-  servo2.write(0);
-  lcd.clear();
-}
- void dh(){
-  float humidity =dht.readHumidity();
-  float temperature = dht.readTemperature();
-  lcd.clear();
-  lcd.setCursor(0,0);
-  lcd.print("Tempareture : ");
-  lcd.print(temperature);
-  lcd.setCursor(0,1);
-  lcd.print("Humidity : ");
-  lcd.print(humidity);
-  delay(7000);
-  lcd.clear();
-}
-void reminder(){
-   digitalWrite(buzzer,HIGH);
-  delay(500);
-  digitalWrite(buzzer,LOW);
-  delay(500);
-  digitalWrite(buzzer,HIGH);
-  delay(500);
-  digitalWrite(buzzer,LOW);
-  delay(500);
-  digitalWrite(buzzer,HIGH);
-  delay(500);
-  digitalWrite(buzzer,LOW);
-  delay(500);
-  lcd.clear();
-  lcd.setCursor(0,0);
-  lcd.print("IT'S TIME TO");
-  lcd.setCursor(0,1);
-  lcd.print("TAKE MEDICINE !");
-  delay(2000);
-  lcd.clear();
-  lcd.setCursor(0,0);
-  lcd.print("PLEASE TAKE");
-  lcd.setCursor(0,1);
-  lcd.print("VERDON 1 CAP");
-  delay(2000);
-  lcd.clear();
-  delay(300);
-  lcd.setCursor(0,0);
-  lcd.print("PLEASE TAKE");
-  lcd.setCursor(0,1);
-  lcd.print("VERDON 1 CAP");
-  delay(2000);
-  lcd.clear();
-  delay(300);
-  lcd.setCursor(0,0);
-  lcd.print("PLEASE TAKE");
-  lcd.setCursor(0,1);
-  lcd.print("VERDON 1 CAP");
-  delay(2000);
-  lcd.clear();
-  delay(300);
-  lcd.setCursor(0,0);
-  lcd.print("PLEASE TAKE");
-  lcd.setCursor(0,1);
-  lcd.print("VERDON 1 CAP");
-  delay(1000);
-   digitalWrite(buzzer,HIGH);
-  delay(500);
-  digitalWrite(buzzer,LOW);
-  delay(500);
-  digitalWrite(buzzer,HIGH);
-  delay(500);
-  digitalWrite(buzzer,LOW);
-  delay(500);
-  digitalWrite(buzzer,HIGH);
-  delay(500);
-  digitalWrite(buzzer,LOW);
-  delay(500);
-  lcd.clear();
-}
-void clock(){
-lcd.clear();
-lcd.setCursor(0,0);
- lcd.print("Time:  ");
- lcd.print(rtc.getTimeStr());
- lcd.setCursor(0,1);
- lcd.print("Date: ");
- lcd.print(rtc.getDateStr());
-delay(7000);
-}
-
-void sendsmsfire()
-{
-  sim.println("AT+CMGF=1");
-  delay(500);
-  sim.println("AT+CMGS=\"" + number + "\"\r");
-  String SMS = "Adress:SR TOWER,COURTPARA";
-  sim.println(SMS);
-  delay(100);
-  sim.println((char)26);
-  delay(500);
-  _buffer = _readSerial();
-}
-
-void sendsmsa()
-{
-  sim.println("AT+CMGF=1");
-  delay(500);
-  sim.println("AT+CMGS=\"" + number + "\"\r");
-  String SMS = "AlChohol Detected !!";
-  sim.println(SMS);
-  delay(100);
-  sim.println((char)26);
-  delay(500);
-  _buffer = _readSerial();
-}
-void sendsmss()
-{
-  sim.println("AT+CMGF=1");
-  delay(500);
-  sim.println("AT+CMGS=\"" + number + "\"\r");
-  String SMS = "SomeOne IS Smoking !!";
-  sim.println(SMS);
-  delay(100);
-  sim.println((char)26);
-  delay(500);
-  _buffer = _readSerial();
-}
-String _readSerial() {
-  _timeout = 0;
-  while  (!sim.available() && _timeout < 12000  )
-  {
-    delay(13);
-    _timeout++;
-  }
-  if (sim.available()) {
-    return sim.readString();
-  }
-}
-
-void call() {
-  sim.print (F("ATD"));
-  sim.print (number);
-  sim.print (F(";\r\n"));
-  _buffer = _readSerial();
-  Serial.println(_buffer);
-}
-void bodyTemperature(){
-  lcd.clear();
-  digitalWrite(buzzer,HIGH);
-  lcd.setCursor(0,0);
-  lcd.print("PLEASE GRASP");
-  lcd.setCursor(0,1);
-  lcd.print("THE SENSOR");
-  delay(1000);
-  digitalWrite(buzzer,LOW);
-  lcd.clear();
-  lcd.setCursor(0,0);
-  lcd.print("PLEASE GRASP");
-  lcd.setCursor(0,1);
-  lcd.print("THE SENSOR");
-  digitalWrite(buzzer,HIGH);
-  delay(1000);
-  digitalWrite(buzzer,LOW);
-  lcd.clear();
-  lcd.print("Initializing.");
-  delay(1000);
-  lcd.clear();
-  lcd.print("Initializing..");
-  delay(1000);
-  lcd.clear();
-  lcd.print("Initializing...");
-  delay(1000);
-  lcd.clear();
-  lcd.print("Initializing....");
-  delay(1000);
-  lcd.clear();
-  lcd.setCursor(0,0);
-  tempSensor.requestTemperatures();                      // request temperature sample from sensor on the one wire bus
-  displayTemp(tempSensor.getTempC(thermometerAddress));
-  lcd.setCursor(0,0);
-  lcd.print(" PROCESS IS");
-  lcd.setCursor(0,1);
-  lcd.print(" COMPLETED !!");
-  delay(5000);
-  lcd.clear();
-}
-
-void displayTemp(float temperatureReading) {             // temperature comes in as a float with 2 decimal places
-  // show temperature °C
-  Serial.print(temperatureReading);     // serial debug output
-  Serial.print("°");
-  lcd.clear();
-  lcd.setCursor(0,0);
-  lcd.print("YOUR BODY TEMP :");
-  lcd.setCursor(0,1);
-  lcd.print(DallasTemperature::toFahrenheit(temperatureReading));
-  lcd.print("°");
-  lcd.print("F | ");
-  lcd.print(temperatureReading);
-  lcd.print("°");
-  Serial.print("C");
-  // show temperature °F
-  Serial.print(DallasTemperature::toFahrenheit(temperatureReading));     // serial debug output
-  Serial.print("°");
-  Serial.println("F");
-}
-
-void setup(){
-  Serial.begin(9600);
-  lcd.clear();
-  lcd.print("Hello !");
-  rtc.begin();
-  lcd.begin();
-  SPI.begin();      // Initiate  SPI bus
-  mfrc522.PCD_Init();   // Initiate MFRC522
- // splash();
-  Serial.begin(9600);
-  _buffer.reserve(50);
-  sim.begin(9600);
-  delay(1000);
-  pinMode(firesensor,INPUT);
-  pinMode(buzzer,OUTPUT);
-  dht.begin();
-  digitalWrite(buzzer,HIGH);
-  delay(500);
-  digitalWrite(buzzer,LOW);
-  delay(500);
-  digitalWrite(buzzer,HIGH);
-  delay(500);
-  digitalWrite(buzzer,LOW);
-  delay(500);
-  //servo1.write(0);
-  delay(200);
-  //s//ervo2.write(0);
-  delay(200);
-  Serial.println("DS18B20 Temperature IC Test");
-  Serial.println("Locating devices...");
-  lcd.begin();     // Initialize the LCD display
-  lcd.backlight();      // Turn on the backlight
-  Serial.println("Ready to read RFID cards");
-  if (!tempSensor.getAddress(thermometerAddress, 0))
-    Serial.println("Unable to find Device.");
-  else {
-    Serial.print("Device 0 Address: ");
-    printAddress(thermometerAddress);
-    Serial.println();
-  }
-  tempSensor.setResolution(thermometerAddress, 9);  
-}
-void loop(){
- if (Serial.available()!=0){
-  /*lcd.clear();
-  lcd.setCursor(0,0);
-  lcd.print("SUCCESFULLY");
-  lcd.setCursor(0,1);
-  lcd.print("CONNECTED!!");
-  delay(500);
-  lcd.clear();
-  delay(200);
-  lcd.setCursor(0,0);
-  lcd.print("SUCCESFULLY");
-  lcd.setCursor(0,1);
-  lcd.print("CONNECTED!!");
-  delay(500);
-*/
-  sms = Serial.read();
-  switch(sms)
-  {
-  case 'a':
-  bodyTemperature1();
-  break;
-  case 'b':
-  bodyTemperature2();
-  break;
-  case 'r':
-  reminder();
-  break;
-  case 'm':
-  medicine();
-  break;
-  case 'c':
-  clock();
-  break;
-  case 'd':
-  dh();
-  break;
-  case 'e':
-  heartrate();
-  break;
-  }
- }
-
-  lcd.clear();
-  lcd.setCursor(0,0);
-  lcd.print("PLEASE GIVE");
-  lcd.setCursor(0,1);
-  lcd.print("ME COMMAND");
-  delay(1000);
-  float* values= mq2.read(true); 
-  lpg = mq2.readLPG();
-  co = mq2.readCO();
-  smoke = mq2.readSmoke();
-  int firevalue = digitalRead(firesensor);
-  if (lpg>100)
-  {
-  lcd.clear();
-  sendsmsfire();
-  lcd.setCursor(0,0);
-  lcd.print("GAS LEAKAGE");
-  lcd.setCursor(0,1);
-  lcd.print("  FOUND !!");
-  digitalWrite(buzer,HIGH);
-  delay(5000);
-  digitalWrite(buzer,LOW);
-  call();
-  lcd.clear();
-  lcd.setCursor(0,0);
-  lcd.print("LPG:");
-  lcd.print(lpg);
-  lcd.print("CO:");
-  lcd.print(co);
-  lcd.setCursor(0,1);
-  lcd.print("SMOKE:");
-  lcd.print((smoke*100)/1000000);
-  lcd.print(" %");
-  delay(2000);
-  lcd.clear();
-  lcd.setCursor(0,0);
-  lcd.print("CALL & SMS SENT");
-  lcd.setCursor(0,1);
-  lcd.print(" TO OWNER");
-  delay(1000);
-  lcd.clear();
-  lcd.setCursor(0,0);
-  lcd.print("CALL & SMS SENT");
-  lcd.setCursor(0,1);
-  lcd.print(" TO OWNER");
-  delay(1000);
-  lcd.clear();
-  }
-   if (smoke>30)
-  {
-  lcd.clear();
-  //sendsmss();
-  lcd.setCursor(0,0);
-  lcd.print("   SMOKE   ");
-  lcd.setCursor(0,1);
-  lcd.print("  FOUND !!");
-  digitalWrite(buzer,HIGH);
-  delay(5000);
-  digitalWrite(buzer,LOW);
-  //call();
-  lcd.clear();
-  lcd.setCursor(0,0);
-  lcd.print("LPG:");
-  lcd.print(lpg);
-  lcd.setCursor(0,1);
-  lcd.print("SMOKE:");
-  lcd.print((smoke*100)/1000000);
-  lcd.print(" %");
-  delay(2000);
-  lcd.clear();
-  lcd.setCursor(0,0);
-  lcd.print("CALL & SMS SENT");
-  lcd.setCursor(0,1);
-  lcd.print(" TO OWNER");
-  delay(1000);
-  lcd.clear();
-  lcd.setCursor(0,0);
-  lcd.print("CALL & SMS SENT");
-  lcd.setCursor(0,1);
-  lcd.print(" TO OWNER");
-  delay(1000);
-  lcd.clear();
-  }
-  if (firevalue==0)
-  {
-  lcd.clear();
-  sendsms();
-  lcd.setCursor(0,0);
-  lcd.print("DANGER!! DANGER!!");
-  lcd.setCursor(0,1);
-  lcd.print("FIRE FOUND!!");
-  digitalWrite(buzer,HIGH);
-  delay(5000);
-  digitalWrite(buzer,LOW);
-  call();
-  lcd.clear();
-  lcd.setCursor(0,0);
-  lcd.print("CALL & SMS SENT");
-  lcd.setCursor(0,1);
-  lcd.print(" TO OWNER");
-  delay(1000);
-  lcd.clear();
-  lcd.setCursor(0,0);
-  lcd.print("CALL & SMS SENT");
-  lcd.setCursor(0,1);
-  lcd.print("  TO OWNER !!");
-  delay(1000);
-  lcd.clear();
-  }
- /* bool digital = digitalRead(sensorDigital);
-  int analog = analogRead(sensorAnalog);
-  Serial.print("Analog value : "N );
-  Serial.print(analog);
-  Serial.print("t");
-  Serial.print("Digital value :");
-  Serial.println(digital);
-  delay(500); 
-  if (digital == 0) {
-  lcd.clear();
-  sendsmsa();
-  lcd.setCursor(0,0);
-  lcd.print("DANGER!! DANGER!!");
-  lcd.setCursor(0,1);
-  lcd.print("ALCHOHOL FOUND!!");
-  digitalWrite(buzer,HIGH);
-  delay(5000);
-  digitalWrite(buzer,LOW);
-   lcd.clear();
-  lcd.setCursor(0,0);
-  lcd.print(" SMS SENT");
-  lcd.setCursor(0,1);
-  lcd.print(" TO OWNER !!");
-  delay(1000);
-  lcd.clear();
-  lcd.setCursor(0,0);
-  lcd.print(" SMS SENT");
-  lcd.setCursor(0,1);
-  lcd.print("  TO OWNER !!");
-  delay(1000);
-  lcd.clear();*/
-  }
-}
-/*void handshake(){
-  servo1.write(0);
-  delay(1000);
-  servo1.write(80);
-  delay(900);
-  servo1.write(50);
-  delay(900);
-  servo1.write(80);
-  delay(900);
-  servo1.write(50);
-  delay(600);
-  servo1.write(80);
-  delay(2000);
-  servo1.write(0);
-}*/
-
-//=========pin-outs============
-/*sda = 1st white = 53
-sck = 2nd white 52
-mosi = black = 51
-misoi = red = 50 
-rst = yellow = purple = 5
-3.3 v = green = blue
-ground = orange */
