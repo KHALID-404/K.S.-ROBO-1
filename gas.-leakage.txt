@@ -1,0 +1,56 @@
+  #include <MQ2.h>
+  #include <Wire.h> 
+  #include <Servo.h>
+  #include <LiquidCrystal_I2C.h>
+  //I2C pins declaration
+  LiquidCrystal_I2C lcd(0x27, 16, 2);
+  Servo servo1;
+  Servo servo2;
+int Analog_Input = A0;
+int buzer = 7;
+int fan = 5;
+int lpg, co, smoke;
+
+MQ2 mq2(Analog_Input);
+
+void setup(){
+  Serial.begin(9600);
+  servo1.attach(10);
+  servo2.attach(9);
+  pinMode(buzer,OUTPUT);
+  servo2.write(0);
+  pinMode(fan,OUTPUT);
+  lcd.begin();//Defining 16 columns and 2 rows of lcd display
+  lcd.backlight();
+  mq2.begin();
+}
+void loop(){
+  float* values= mq2.read(true); //set it false if you don't want to print the values in the Serial
+  //lpg = values[0];
+  lpg = mq2.readLPG();
+  //co = values[1];
+  co = mq2.readCO();
+  //smoke = values[2];
+  smoke = mq2.readSmoke();
+  lcd.setCursor(0,0);
+  lcd.print("LPG:");
+  lcd.print(lpg);
+  lcd.print(" CO:");
+  lcd.print(co);
+  lcd.setCursor(0,1);
+  lcd.print("SMOKE:");
+  lcd.print((smoke*100)/1000000);
+  lcd.print(" %");
+  if (lpg>160)
+  {
+    servo1.write(0);
+    digitalWrite(buzer,HIGH);
+    delay(4000);
+    digitalWrite(buzer,LOW);
+    servo1.write(160);
+    servo2.write(180);
+    digitalWrite(fan,HIGH);
+    delay(800);
+  }
+  delay(800);
+}
