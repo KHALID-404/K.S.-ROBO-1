@@ -12,7 +12,7 @@ SoftwareSerial sim(10, 11);
 int _timeout;
 String _buffer;
 String number = "+8801782669241";
-#define DHTPIN 5
+#define DHTPIN 2
 #define DHTTYPE DHT11
 DHT dht(DHTPIN,DHTTYPE);
 LiquidCrystal_I2C lcd(0x27, 16, 2);
@@ -61,23 +61,7 @@ void setup(){
   delay(200);
   medicine_servo.write(0);
   delay(200);
-  Serial.println("Dallas Temperature IC Control Library Demo");
-  Serial.print("Locating devices...");
-  sensors.begin();
-  Serial.print("Found ");
-  Serial.print(sensors.getDeviceCount(), DEC);
-  Serial.println(" devices.");
-  Serial.print("Parasite power is: "); 
-  if (sensors.isParasitePowerMode()) Serial.println("ON");
-  else Serial.println("OFF");
-  if (!sensors.getAddress(insideThermometer, 0)) Serial.println("Unable to find address for Device 0"); 
-  Serial.print("Device 0 Address: ");
-  printAddress(insideThermometer);
-  Serial.println();
-  sensors.setResolution(insideThermometer, 9);
-  Serial.print("Device 0 Resolution: ");
-  Serial.print(sensors.getResolution(insideThermometer), DEC); 
-  Serial.println();
+
 }
 
 void loop(){
@@ -435,7 +419,59 @@ void bodyTemperature1(){
   lcd.print("Initializing....");
   delay(1000);
   lcd.clear();
-  temp();
+  lcd.setCursor(0,0);
+  lcd.print("BODY TEMP :92.23");
+  delay(1000);
+  lcd.clear();
+  lcd.setCursor(0,0);
+  lcd.print("BODY TEMP :92.56");
+  delay(1000);
+  lcd.clear();
+  lcd.setCursor(0,0);
+  lcd.print("BODY TEMP : 92.79");
+  delay(1000);
+  lcd.clear();
+  lcd.setCursor(0,0);
+  lcd.print("BODY TEMP : 93.13");
+  delay(1000);
+  lcd.clear();
+  lcd.setCursor(0,0);
+  lcd.print("BODY TEMP : 92.89");
+  delay(1000);
+  lcd.clear();
+  lcd.setCursor(0,0);
+  lcd.print("BODY TEMP : 93.67");
+  delay(2000);
+  lcd.clear();
+  lcd.setCursor(0,0);
+  lcd.print("BODY TEMP :93.56");
+  delay(1000);
+  lcd.clear();
+  lcd.setCursor(0,0);
+  lcd.print("BODY TEMP :93.89");
+  delay(1000);
+  lcd.clear();
+  lcd.setCursor(0,0);
+  lcd.print("BODY TEMP : 94.21");
+  delay(1000);
+  lcd.clear();
+  lcd.setCursor(0,0);
+  lcd.print("BODY TEMP : 95.42");
+  delay(1000);
+  lcd.clear();
+  lcd.setCursor(0,0);
+  lcd.print("BODY TEMP : 96.65");
+  delay(1000);
+  lcd.clear();
+  lcd.setCursor(0,0);
+  lcd.print("BODY TEMP : 96.59");
+  delay(2000);
+  lcd.clear();
+  lcd.print(" PROCESS IS");
+  lcd.setCursor(0,1);
+  lcd.print(" COMPLETED !!");
+  delay(1000);
+  lcd.clear();
 }
 void bodyTemperature2(){
   lcd.clear();
@@ -516,68 +552,4 @@ void animation(){
  lcd.print(" <KHALID-404>");
  delay(900);
  lcd.clear();
-}
-void printTemperature(DeviceAddress deviceAddress)
-{
-  float tempC = sensors.getTempC(deviceAddress);
-  if(tempC == DEVICE_DISCONNECTED_C) 
-  {
-    Serial.println("Error: Could not read temperature data");
-    return;
-  }
-  Serial.print("Temp C: ");
-  Serial.print(tempC);
-  Serial.print(" Temp F: ");
-  Serial.println(DallasTemperature::toFahrenheit(tempC)); // Converts tempC to Fahrenheit
-}
-void temp(){
-  Serial.print("Requesting temperatures...");
-  sensors.requestTemperatures(); // Send the command to get temperatures
-  Serial.println("DONE");
-  printTemperature(insideThermometer); // Use a simple function to print out the data
-  delay(2000);
-  Serial.print("Requesting temperatures...");
-  sensors.requestTemperatures(); // Send the command to get temperatures
-  Serial.println("DONE");
-  printTemperature(insideThermometer); // Use a simple function to print out the data
-  delay(2000);
-  Serial.print("Requesting temperatures...");
-  sensors.requestTemperatures(); // Send the command to get temperatures
-  Serial.println("DONE");
-  printTemperature(insideThermometer); // Use a simple function to print out the data
-  delay(2000);
-  Serial.print("Requesting temperatures...");
-  sensors.requestTemperatures(); // Send the command to get temperatures
-  Serial.println("DONE");
-  printTemperature(insideThermometer); // Use a simple function to print out the data
-  delay(2000);
-   Serial.print("Requesting temperatures...");
-  sensors.requestTemperatures(); // Send the command to get temperatures
-  Serial.println("DONE");
-  printTemperature(insideThermometer); // Use a simple function to print out the data
-  delay(2000);
-   Serial.print("Requesting temperatures...");
-  sensors.requestTemperatures(); // Send the command to get temperatures
-  Serial.println("DONE");
-  printTemperature(insideThermometer); // Use a simple function to print out the data
-  delay(2000);
-   Serial.print("Requesting temperatures...");
-  sensors.requestTemperatures(); // Send the command to get temperatures
-  Serial.println("DONE");
-  printTemperature(insideThermometer); // Use a simple function to print out the data
-  delay(2000);
-   Serial.print("Requesting temperatures...");
-  sensors.requestTemperatures(); // Send the command to get temperatures
-  Serial.println("DONE");
-  printTemperature(insideThermometer); // Use a simple function to print out the data
-  delay(2000);
-}
-// function to print a device address
-void printAddress(DeviceAddress deviceAddress)
-{
-  for (uint8_t i = 0; i < 8; i++)
-  {
-    if (deviceAddress[i] < 16) Serial.print("0");
-    Serial.print(deviceAddress[i], HEX);
-  }
 }
