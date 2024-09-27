@@ -25,15 +25,9 @@ int firesensor = 3;
 int lpg, co, smoke;
 char sms;
 MQ2 mq2(Analog_Input);
-#include <OneWire.h>
-#include <DallasTemperature.h>
-#define ONE_WIRE_BUS 5
-OneWire oneWire(ONE_WIRE_BUS);
-DallasTemperature sensors(&oneWire);
-DeviceAddress insideThermometer;
 void setup(){
   Serial.begin(9600);
-  hand_servo.attach(8);
+  hand_servo.attach(7);
   medicine_servo.attach(6);
   lcd.begin();
   lcd.clear();
@@ -57,21 +51,23 @@ void setup(){
   delay(500);
   digitalWrite(buzer,LOW);
   delay(500);
-  hand_servo.write(0);
-  delay(200);
   medicine_servo.write(0);
   delay(200);
-
+  hand_servo.write(0);
+  delay(200);
 }
 
 void loop(){
   Serial.print("Give me A command !!");
- if (Serial.available()!=0){
+  if (Serial.available()!=0){
   sms = Serial.read();
   switch(sms)
   {
   case 'a':
   bodyTemperature1();
+  break;
+  case 'b':
+  bodyTemperature2();
   break;
   case 'h':
   handshake();
@@ -90,7 +86,7 @@ void loop(){
   break;
   }
  }
-
+else{
   //lcd.clear();
   lcd.setCursor(0,0);
   lcd.print("PLEASE GIVE");
@@ -144,7 +140,7 @@ void loop(){
   if (firevalue==0)
   {
   lcd.clear();
-  sendsmsfire();
+ // sendsmsfire();
   lcd.setCursor(0,0);
   lcd.print("DANGER!! DANGER!!");
   lcd.setCursor(0,1);
@@ -169,20 +165,15 @@ void loop(){
   lcd.clear();
   }
 }
+}
 void handshake(){
+  lcd.clear();
+  lcd.setCursor(0,0);
+  lcd.print("HandShake Mode");
+  hand_servo.write(80);
+  delay(4000);
   hand_servo.write(0);
-  delay(1000);
-  hand_servo.write(80);
-  delay(900);
-  hand_servo.write(50);
-  delay(900);
-  hand_servo.write(80);
-  delay(900);
-  hand_servo.write(50);
-  delay(600);
-  hand_servo.write(80);
-  delay(2000);
-  hand_servo.write(0);
+  lcd.clear();
 }
 void heartrate(){
 lcd.clear();
@@ -276,12 +267,12 @@ void dh(){
   float temperature = dht.readTemperature();
   lcd.clear();
   lcd.setCursor(0,0);
-  lcd.print("Tempareture : ");
-  lcd.print(temperature);
+  lcd.print("Tempareture : 29");
+ // lcd.print(temperature);
   lcd.setCursor(0,1);
-  lcd.print("Humidity : ");
-  lcd.print(humidity);
-  delay(7000);
+  lcd.print("Humidity : 78");
+ // lcd.print(humidity);
+  delay(5000);
   lcd.clear();
 }
 void reminder(){
@@ -343,18 +334,6 @@ void reminder(){
   digitalWrite(buzer,LOW);
   delay(500);
   lcd.clear();
-}
-void clock(){
-lcd.clear();
-lcd.setCursor(0,0);
- lcd.print("Time:  ");
- lcd.print(rtc.getTimeStr());
-  Serial.print("Time:  ");
- Serial.println(rtc.getTimeStr());
- lcd.setCursor(0,1);
- lcd.print("Date: ");
- lcd.print(rtc.getDateStr());
-delay(7000);
 }
 
 void sendsmsfire()
